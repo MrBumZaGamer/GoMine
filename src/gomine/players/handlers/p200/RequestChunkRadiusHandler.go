@@ -29,7 +29,7 @@ func (handler RequestChunkRadiusHandler) Handle(packet interfaces.IPacket, playe
 
 		var hasChunksInUse = player.HasAnyChunkInUse()
 
-		server.GetDefaultLevel().GetDefaultDimension().RequestChunks(player, 10)
+		server.GetLevelManager().GetDefaultLevel().GetDefaultDimension().RequestChunks(player, 10)
 
 		if !hasChunksInUse {
 			player.SetSpawned(true)

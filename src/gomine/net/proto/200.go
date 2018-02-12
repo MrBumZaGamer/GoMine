@@ -256,14 +256,14 @@ func (protocol *Protocol200) GetStartGame(player interfaces.IPlayer) interfaces.
 	pk.LevelSpawnPosition = *vectors.NewTripleVector(20, 20, 20)
 	pk.CommandsEnabled = true
 
-	var gameRules = player.GetServer().GetDefaultLevel().GetGameRules()
+	var gameRules = player.GetServer().GetLevelManager().GetDefaultLevel().GetGameRules()
 	var gameRuleEntries = map[string]types.GameRuleEntry{}
 	for name, gameRule := range gameRules {
 		gameRuleEntries[name] = types.GameRuleEntry{Name: gameRule.GetName(), Value: gameRule.GetValue()}
 	}
 
 	pk.GameRules = gameRuleEntries
-	pk.LevelName = player.GetServer().GetDefaultLevel().GetName()
+	pk.LevelName = player.GetServer().GetLevelManager().GetDefaultLevel().GetName()
 	pk.CurrentTick = player.GetServer().GetCurrentTick()
 	pk.Time = 0
 	pk.AchievementsDisabled = true

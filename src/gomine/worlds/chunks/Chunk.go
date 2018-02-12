@@ -11,14 +11,16 @@ import (
 type Chunk struct {
 	height int
 	x, z int32
-	subChunks map[int]interfaces.ISubChunk
+	subChunks map[byte]interfaces.ISubChunk
 	LightPopulated bool
 	TerrainPopulated bool
 	tiles map[uint64]tiles.Tile
 	entities map[uint64]interfaces.IEntity
-	biomes map[int]int
-	heightMap [257]int16
+	biomes []byte
+	heightMap [256]int16
 	viewers sync.Map
+	InhabitedTime int64
+	LastUpdate int64
 }
 
 func NewChunk(x, z int32) *Chunk {
@@ -26,14 +28,16 @@ func NewChunk(x, z int32) *Chunk {
 		256,
 		x,
 		z,
-		make(map[int]interfaces.ISubChunk),
+		make(map[byte]interfaces.ISubChunk),
 		true,
 		true,
 		make(map[uint64]tiles.Tile),
 		make(map[uint64]interfaces.IEntity),
-		make(map[int]int),
-		[257]int16{},
+		make([]byte, 256),
+		[256]int16{},
 		sync.Map{},
+		0,
+		0,
 	}
 }
 
@@ -124,14 +128,14 @@ func (chunk *Chunk) SetHeight(height int) {
 /**
  * Returns the biome of this coordinate. (?)
  */
-func (chunk *Chunk) GetBiome(x, z int) int {
+func (chunk *Chunk) GetBiome(x, z int) byte {
 	return chunk.biomes[chunk.GetBiomeIndex(x, z)]
 }
 
 /**
  * Sets the biome of this coordinate. (?)
  */
-func (chunk *Chunk) SetBiome(x, z, biome int) {
+func (chunk *Chunk) SetBiome(x, z int, biome byte) {
 	chunk.biomes[chunk.GetBiomeIndex(x, z)] = biome
 }
 
@@ -201,13 +205,13 @@ func (chunk *Chunk) GetHeightMapIndex(x, z int) int {
  * Sets the block ID on a position in this chunk.
  */
 func (chunk *Chunk) SetBlockId(x, y, z int, blockId byte)  {
-	v, err := chunk.GetSubChunk(y >> 4)
+	v, err := chunk.GetSubChunk(byte(y >> 4))
 	if err == nil {
 		v.SetBlockId(x, y & 15, z, blockId)
 	} else {
 		sub := NewSubChunk()
 		sub.SetBlockId(x, y & 15, z, blockId)
-		chunk.SetSubChunk(y >> 4, sub)
+		chunk.SetSubChunk(byte(y >> 4), sub)
 	}
 }
 
@@ -215,7 +219,7 @@ func (chunk *Chunk) SetBlockId(x, y, z int, blockId byte)  {
  * Returns the block ID on a position in this chunk.
  */
 func (chunk *Chunk) GetBlockId(x, y, z int) byte {
-	v, err := chunk.GetSubChunk(y >> 4)
+	v, err := chunk.GetSubChunk(byte(y >> 4))
 	if err == nil {
 		return v.GetBlockId(x, y & 15, z)
 	}
@@ -226,7 +230,7 @@ func (chunk *Chunk) GetBlockId(x, y, z int) byte {
  * Sets the block data on a position in this chunk.
  */
 func (chunk *Chunk) SetBlockData(x, y, z int, data byte)  {
-	v, err := chunk.GetSubChunk(y >> 4)
+	v, err := chunk.GetSubChunk(byte(y >> 4))
 	if err == nil {
 		v.SetBlockData(x, y & 15, z, data)
 	}
@@ -236,7 +240,7 @@ func (chunk *Chunk) SetBlockData(x, y, z int, data byte)  {
  * Returns the block data on a position in this chunk.
  */
 func (chunk *Chunk) GetBlockData(x, y, z int) byte {
-	v, err := chunk.GetSubChunk(y >> 4)
+	v, err := chunk.GetSubChunk(byte(y >> 4))
 	if err == nil {
 		return v.GetBlockData(x, y & 15, z)
 	}
@@ -247,7 +251,7 @@ func (chunk *Chunk) GetBlockData(x, y, z int) byte {
  * Sets the block light on a position in this chunk.
  */
 func (chunk *Chunk) SetBlockLight(x, y, z int, level byte)  {
-	v, err := chunk.GetSubChunk(y >> 4)
+	v, err := chunk.GetSubChunk(byte(y >> 4))
 	if err == nil {
 		v.SetBlockLight(x, y & 15, z, level)
 	}
@@ -257,7 +261,7 @@ func (chunk *Chunk) SetBlockLight(x, y, z int, level byte)  {
  * Returns the block light on a position in this chunk.
  */
 func (chunk *Chunk) GetBlockLight(x, y, z int) byte {
-	v, err := chunk.GetSubChunk(y >> 4)
+	v, err := chunk.GetSubChunk(byte(y >> 4))
 	if err == nil {
 		return v.GetBlockLight(x, y & 15, z)
 	}
@@ -268,7 +272,7 @@ func (chunk *Chunk) GetBlockLight(x, y, z int) byte {
  * Sets the sky light on a position in this chunk.
  */
 func (chunk *Chunk) SetSkyLight(x, y, z int, level byte)  {
-	v, err := chunk.GetSubChunk(y >> 4)
+	v, err := chunk.GetSubChunk(byte(y >> 4))
 	if err == nil {
 		v.SetSkyLight(x, y & 15, z, level)
 	}
@@ -278,7 +282,7 @@ func (chunk *Chunk) SetSkyLight(x, y, z int, level byte)  {
  * Returns the sky light on a position in this chunk.
  */
 func (chunk *Chunk) GetSkyLight(x, y, z int) byte {
-	v, err := chunk.GetSubChunk(y >> 4)
+	v, err := chunk.GetSubChunk(byte(y >> 4))
 	if err == nil {
 		return v.GetSkyLight(x, y & 15, z)
 	}
@@ -288,8 +292,8 @@ func (chunk *Chunk) GetSkyLight(x, y, z int) byte {
 /**
  * Sets a SubChunk on a position in this chunk.
  */
-func (chunk *Chunk) SetSubChunk(y int, subChunk interfaces.ISubChunk) bool {
-	if y > chunk.height || y < 0 {
+func (chunk *Chunk) SetSubChunk(y byte, subChunk interfaces.ISubChunk) bool {
+	if int(y) > chunk.height || y < 0 {
 		return false
 	}
 	chunk.subChunks[y] = subChunk
@@ -299,8 +303,8 @@ func (chunk *Chunk) SetSubChunk(y int, subChunk interfaces.ISubChunk) bool {
 /**
  * Returns a SubChunk on a given height index in this chunk.
  */
-func (chunk *Chunk) GetSubChunk(y int) (interfaces.ISubChunk, error) {
-	if y > chunk.height || y < 0 {
+func (chunk *Chunk) GetSubChunk(y byte) (interfaces.ISubChunk, error) {
+	if int(y) > chunk.height || y < 0 {
 		return NewEmptySubChunk(), errors.New("SubChunk does not exist")
 	}
 	if _, ok := chunk.subChunks[y]; ok {
@@ -313,7 +317,7 @@ func (chunk *Chunk) GetSubChunk(y int) (interfaces.ISubChunk, error) {
 /**
  * Returns all SubChunks in this chunk.
  */
-func (chunk *Chunk) GetSubChunks() map[int]interfaces.ISubChunk {
+func (chunk *Chunk) GetSubChunks() map[byte]interfaces.ISubChunk {
 	return chunk.subChunks
 }
 
@@ -354,7 +358,7 @@ func (chunk *Chunk) RecalculateHeightMap() {
  */
 func (chunk *Chunk) GetHighestSubChunk() interfaces.ISubChunk {
 	var highest interfaces.ISubChunk = NewEmptySubChunk()
-	for y := 15; y >= 0; y-- {
+	for y := byte(15); y >= 0; y-- {
 		if _, ok := chunk.subChunks[y];! ok {
 			continue
 		}
@@ -401,7 +405,7 @@ func (chunk *Chunk) GetFilledSubChunks() byte {
  */
 func (chunk *Chunk) PruneEmptySubChunks() {
 	for y, subChunk := range chunk.subChunks {
-		if y > chunk.height || y < 0 {
+		if int(y) > chunk.height || y < 0 {
 			delete(chunk.subChunks, y)
 			continue
 		}
@@ -419,11 +423,11 @@ func (chunk *Chunk) ToBinary() []byte {
 	var subChunkCount = chunk.GetFilledSubChunks()
 
 	stream.PutByte(subChunkCount)
-	for i := 0; i < int(subChunkCount); i++ {
+	for i := byte(0); i < subChunkCount; i++ {
 		stream.PutBytes(chunk.subChunks[i].ToBinary())
 	}
 
-	for i := 256; i >= 0; i-- {
+	for i := 255; i >= 0; i-- {
 		stream.PutLittleShort(chunk.heightMap[i])
 	}
 

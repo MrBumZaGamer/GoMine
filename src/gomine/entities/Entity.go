@@ -138,7 +138,10 @@ func (entity *Entity) SetPosition(v *vectors.TripleVector) {
 	var newChunkZ = int32(math2.Floor(float64(v.Z))) >> 4
 
 	var oldChunk = entity.GetChunk()
-	var newChunk = entity.GetDimension().GetChunk(newChunkX, newChunkZ)
+	var newChunk, ok = entity.GetDimension().GetChunk(newChunkX, newChunkZ)
+	if !ok {
+		return
+	}
 
 	entity.Position = v
 
@@ -155,7 +158,8 @@ func (entity *Entity) SetPosition(v *vectors.TripleVector) {
 func (entity *Entity) GetChunk() interfaces.IChunk {
 	var x = int32(math2.Floor(float64(entity.Position.X))) >> 4
 	var z = int32(math2.Floor(float64(entity.Position.Z))) >> 4
-	return entity.GetDimension().GetChunk(x, z)
+	var chunk, _ = entity.GetDimension().GetChunk(x, z)
+	return chunk
 }
 
 /**

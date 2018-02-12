@@ -1,8 +1,6 @@
 package gomine
 
 import (
-	"errors"
-	"os"
 	"gomine/utils"
 	"gomine/resources"
 	"gomine/worlds"
@@ -21,8 +19,6 @@ import (
 	"gomine/net/query"
 	"goraklib/server"
 )
-
-var levelId = 0
 
 const (
 	GoMineName = "GoMine"
@@ -44,7 +40,7 @@ type Server struct {
 	packHandler *packs.PackHandler
 	permissionManager *permissions.PermissionManager
 
-	levels map[int]interfaces.ILevel
+	levelManager *worlds.LevelManager
 
 	playerFactory *players.PlayerFactory
 
@@ -65,7 +61,7 @@ func NewServer(serverPath string) *Server {
 	server.serverPath = serverPath
 	server.config = resources.NewGoMineConfig(serverPath)
 	server.logger = utils.NewLogger(GoMineName, serverPath, server.GetConfiguration().DebugMode)
-	server.levels = make(map[int]interfaces.ILevel)
+	server.levelManager = worlds.NewLevelManager(server)
 	server.consoleReader = NewConsoleReader(server)
 	server.commandHolder = commands.NewCommandHolder()
 	server.networkAdapter = net.NewNetworkAdapter(server)
@@ -126,7 +122,7 @@ func (server *Server) Start() {
 
 	server.RegisterDefaultCommands()
 
-	server.LoadLevels()
+	server.levelManager.LoadLevel(server.config.DefaultLevel)
 
 	server.packHandler.LoadResourcePacks() // Behavior packs may depend on resource packs, so always load resource packs first.
 	server.packHandler.LoadBehaviorPacks()
@@ -146,8 +142,13 @@ func (server *Server) Shutdown() {
 	server.GetLogger().Info("Server is shutting down.")
 
 	server.isRunning = false
+	server.levelManager.Close()
 
 	server.GetLogger().Notice("Server stopped.")
+}
+
+func (server *Server) AutoSave() {
+
 }
 
 /**
@@ -188,97 +189,10 @@ func (server *Server) GetConfiguration() *resources.GoMineConfig {
 }
 
 /**
- * Returns all loaded levels in the server.
+ * Returns the level manager of the server.
  */
-func (server *Server) GetLoadedLevels() map[int]interfaces.ILevel {
-	return server.levels
-}
-
-func (server *Server) LoadLevels() {
-	server.LoadLevel(server.config.DefaultLevel)
-}
-
-/**
- * Returns whether a level is loaded or not.
- */
-func (server *Server) IsLevelLoaded(levelName string) bool {
-	for _, level := range server.levels  {
-		if level.GetName() == levelName {
-			return true
-		}
-	}
-	return false
-}
-
-/**
- * Returns whether a level is generated or not. (Includes loaded levels)
- */
-func (server *Server) IsLevelGenerated(levelName string) bool {
-	if server.IsLevelLoaded(levelName) {
-		return true
-	}
-	var path = server.GetServerPath() + "worlds/" + levelName
-	var _, err = os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return true
-}
-
-/**
- * Loads a generated world. Returns true if the level was loaded successfully.
- */
-func (server *Server) LoadLevel(levelName string) bool {
-	if !server.IsLevelGenerated(levelName) {
-		// server.GenerateLevel(level) We need file writing for this. TODO.
-	}
-	if server.IsLevelLoaded(levelName) {
-		return false
-	}
-	server.levels[levelId] = worlds.NewLevel(levelName, levelId, server, make(map[int]interfaces.IChunk))
-	levelId++
-	return true
-}
-
-/**
- * Returns the default level and loads/generates it if needed.
- */
-func (server *Server) GetDefaultLevel() interfaces.ILevel {
-	if !server.IsLevelLoaded(server.config.DefaultLevel) {
-		server.LoadLevel(server.config.DefaultLevel)
-	}
-	var level, _ = server.GetLevelByName(server.config.DefaultLevel)
-	return level
-}
-
-/**
- * Returns a level by its ID. Returns an error if a level with the ID is not loaded.
- */
-func (server *Server) GetLevelById(id int) (interfaces.ILevel, error) {
-	var level interfaces.ILevel
-	if level, ok := server.levels[id]; ok {
-		return level, nil
-	}
-	return level, errors.New("level with given ID is not loaded")
-}
-
-/**
- * Returns a level by its name. Returns an error if the level is not loaded.
- */
-func (server *Server) GetLevelByName(name string) (interfaces.ILevel, error) {
-	var level interfaces.ILevel
-	if !server.IsLevelGenerated(name) {
-		return level, errors.New("level with given name is not generated")
-	}
-	if !server.IsLevelLoaded(name) {
-		return level, errors.New("level with given name is not loaded")
-	}
-	for _, level := range server.GetLoadedLevels() {
-		if level.GetName() == name {
-			return level, nil
-		}
-	}
-	return level, nil
+func (server *Server) GetLevelManager() interfaces.ILevelManager {
+	return server.levelManager
 }
 
 /**
@@ -458,7 +372,7 @@ func (server *Server) GenerateQueryResult(shortData bool) []byte {
 		GameMode: "SMP",
 		Version: server.GetMinecraftVersion(),
 		ServerEngine: server.GetEngineName(),
-		WorldName: server.GetDefaultLevel().GetName(),
+		WorldName: server.GetLevelManager().GetDefaultLevel().GetName(),
 		OnlinePlayers: int(server.GetPlayerFactory().GetPlayerCount()),
 		MaximumPlayers: int(server.config.MaximumPlayers),
 		Whitelist: "off",
@@ -490,22 +404,23 @@ func (server *Server) HandleRaw(packet server.RawPacket) {
 
 /**
  * Internal. Not to be used by plugins.
- * Ticks the entire server. (Levels, scheduler, GoRakLib server etc.)
+ * Ticks the entire server. (Levels, GoRakLib server etc.)
  */
 func (server *Server) Tick(currentTick int64) {
 	server.tick = currentTick
 	if !server.isRunning {
 		return
 	}
-	for _, level := range server.levels {
-		level.TickLevel()
-	}
+
+	server.networkAdapter.Tick()
+
+	server.levelManager.Tick()
 
 	for _, p := range server.playerFactory.GetPlayers() {
 		p.Tick()
 	}
 
-	server.networkAdapter.Tick()
-
 	server.networkAdapter.GetRakLibServer().SetConnectedSessionCount(server.GetPlayerFactory().GetPlayerCount())
+
+
 }

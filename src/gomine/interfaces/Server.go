@@ -14,10 +14,6 @@ type IServer interface {
 	GetLogger() ILogger
 	GetConfiguration() *resources.GoMineConfig
 	GetCommandHolder() ICommandHolder
-	GetLoadedLevels() map[int]ILevel
-	IsLevelLoaded(string) bool
-	IsLevelGenerated(string) bool
-	LoadLevel(string) bool
 	HasPermission(string) bool
 	SendMessage(string)
 	GetName() string
@@ -33,9 +29,6 @@ type IServer interface {
 	GetNetworkAdapter() INetworkAdapter
 	GetPlayerFactory() IPlayerFactory
 	GetPackHandler() IPackHandler
-	GetDefaultLevel() ILevel
-	GetLevelById(int) (ILevel, error)
-	GetLevelByName(string) (ILevel, error)
 	GetCurrentTick() int64
 	BroadcastMessageTo(message string, receivers []IPlayer)
 	BroadcastMessage(message string)
@@ -44,4 +37,5 @@ type IServer interface {
 	GetServerToken() []byte
 	HandleRaw(server.RawPacket)
 	GenerateQueryResult(bool) []byte
+	GetLevelManager() ILevelManager
 }

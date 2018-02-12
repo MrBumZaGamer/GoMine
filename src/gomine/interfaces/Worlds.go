@@ -1,6 +1,8 @@
 package interfaces
 
-import "gomine/vectors"
+import (
+	"gomine/vectors"
+)
 
 type IBlock interface{
 	GetId() int
@@ -46,8 +48,8 @@ type IChunk interface {
 	SetTerrainPopulated(bool)
 	GetHeight() int
 	SetHeight(int)
-	GetBiome(int, int) int
-	SetBiome(int, int, int)
+	GetBiome(int, int) byte
+	SetBiome(int, int, byte)
 	SetBlockId(int, int, int, byte)
 	GetBlockId(int, int, int) byte
 	SetBlockData(int, int, int, byte)
@@ -56,9 +58,9 @@ type IChunk interface {
 	GetBlockLight(int, int, int) byte
 	SetSkyLight(int, int, int, byte)
 	GetSkyLight(int, int, int) byte
-	SetSubChunk(int, ISubChunk) bool
-	GetSubChunk(int) (ISubChunk, error)
-	GetSubChunks() map[int]ISubChunk
+	SetSubChunk(byte, ISubChunk) bool
+	GetSubChunk(byte) (ISubChunk, error)
+	GetSubChunks() map[byte]ISubChunk
 	GetHighestBlockId(int, int) byte
 	GetHighestBlockData(int, int) byte
 	GetHighestBlock(int, int) int16
@@ -101,7 +103,6 @@ type ILevel interface {
 	GetGameRules() map[string]IGameRule
 	GetGameRule(string) IGameRule
 	AddGameRule(IGameRule)
-	GetRuntimeId() int
 }
 
 type IGameRule interface {
@@ -116,9 +117,33 @@ type IDimension interface {
 	GetName() string
 	TickDimension()
 	SetChunk(int32, int32, IChunk)
-	GetChunk(int32, int32) IChunk
+	GetChunk(int32, int32) (IChunk, bool)
 	RequestChunks(IPlayer, int32)
-	IsGenerated() bool
 	SetGenerator(IGenerator)
 	GetGenerator() IGenerator
+	Close()
+	IsChunkLoaded(int32, int32) bool
+	UnloadChunk(int32, int32)
+}
+
+type IChunkProvider interface {
+	Save()
+	Close(bool)
+	LoadChunk(int32, int32, func(IChunk))
+	IsChunkLoaded(int32, int32) bool
+	UnloadChunk(int32, int32)
+	SetChunk(int32, int32, IChunk)
+	GetChunk(int32, int32) (IChunk, bool)
+	SetGenerator(IGenerator)
+	GetGenerator() IGenerator
+	GenerateChunk(int32, int32)
+}
+
+type ILevelManager interface {
+	GetLoadedLevels() map[string]ILevel
+	IsLevelLoaded(string) bool
+	IsLevelGenerated(string) bool
+	LoadLevel(string) bool
+	GetDefaultLevel() ILevel
+	GetLevelByName(string) (ILevel, error)
 }

@@ -2,12 +2,12 @@ package worlds
 
 import (
 	"gomine/interfaces"
+	"os"
 )
 
 type Level struct {
 	server interfaces.IServer
 	name string
-	id int
 	dimensions map[string]interfaces.IDimension
 	defaultDimension interfaces.IDimension
 
@@ -17,10 +17,11 @@ type Level struct {
 /**
  * Returns a new Level with the given level name.
  */
-func NewLevel(levelName string, levelId int, server interfaces.IServer, chunks map[int]interfaces.IChunk) *Level {
-	var level = &Level{server: server, name: levelName, id: levelId, dimensions: make(map[string]interfaces.IDimension), gameRules: make(map[string]interfaces.IGameRule)}
+func NewLevel(levelName string, server interfaces.IServer) *Level {
+	var level = &Level{server: server, name: levelName, dimensions: make(map[string]interfaces.IDimension), gameRules: make(map[string]interfaces.IGameRule)}
+	os.MkdirAll(server.GetServerPath() + "worlds/" + levelName, 0644)
 
-	var defaultDimension = NewDimension("Overworld", OverworldId, level, "", chunks)
+	var defaultDimension = NewDimension("Overworld", OverworldId, level, "")
 	level.SetDefaultDimension(defaultDimension)
 
 	level.initializeGameRules()
@@ -60,13 +61,6 @@ func (level *Level) GetServer() interfaces.IServer {
  */
 func (level *Level) GetName() string {
 	return level.name
-}
-
-/**
- * Returns the ID of this level.
- */
-func (level *Level) GetRuntimeId() int {
-	return level.id
 }
 
 /**

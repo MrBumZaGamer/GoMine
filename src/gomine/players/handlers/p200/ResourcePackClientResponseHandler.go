@@ -43,7 +43,7 @@ func (handler ResourcePackClientResponseHandler) Handle(packet interfaces.IPacke
 			player.SendResourcePackStack(server.GetConfiguration().ForceResourcePacks, server.GetPackHandler().GetResourceStack().GetPacks(), server.GetPackHandler().GetBehaviorStack().GetPacks())
 
 		case data.StatusCompleted:
-			player.PlaceInWorld(vectors.NewTripleVector(0, 20, 0), math.NewRotation(0, 0, 0), server.GetDefaultLevel(), server.GetDefaultLevel().GetDefaultDimension())
+			player.PlaceInWorld(vectors.NewTripleVector(0, 20, 0), math.NewRotation(0, 0, 0), server.GetLevelManager().GetDefaultLevel(), server.GetLevelManager().GetDefaultLevel().GetDefaultDimension())
 			player.SetFinalized()
 
 			player.SendStartGame(player)

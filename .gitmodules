@@ -4,3 +4,9 @@
 [submodule "src/goraklib"]
 	path = src/goraklib
 	url = https://github.com/Irmine/GoRakLib
+[submodule "src/libraries/anvil"]
+	path = src/libraries/anvil
+	url = https://github.com/Irmine/GoAnvil
+[submodule "src/libraries/nbt"]
+	path = src/libraries/nbt
+	url = https://github.com/Irmine/GoNBT

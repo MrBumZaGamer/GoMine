@@ -3,8 +3,9 @@ package worlds
 import (
 	"gomine/interfaces"
 	"gomine/worlds/generation"
-	"gomine/worlds/chunks"
 	"sync"
+	"gomine/worlds/providers"
+	"os"
 )
 
 const (
@@ -17,12 +18,9 @@ type Dimension struct {
 	name 		string
 	dimensionId int
 	level       interfaces.ILevel
-	isGenerated bool
 
-	chunks 		map[int]interfaces.IChunk
+	chunkProvider interfaces.IChunkProvider
 	updatedBlocks map[int][]interfaces.IBlock
-
-	generator interfaces.IGenerator
 
 	mux sync.Mutex
 }
@@ -30,19 +28,22 @@ type Dimension struct {
 /**
  * Returns a new dimension with the given dimension ID.
  */
-func NewDimension(name string, dimensionId int, level *Level, generator string, chunks map[int]interfaces.IChunk) *Dimension {
+func NewDimension(name string, dimensionId int, level *Level, generator string) *Dimension {
+	var path = level.GetServer().GetServerPath() + "worlds/" + level.GetName() + "/" + name + "/region/"
+	os.MkdirAll(path, 0644)
+
 	var dimension = &Dimension{
 		name:  name,
 		dimensionId: dimensionId,
 		level: level,
-		chunks: chunks,
 		updatedBlocks: make(map[int][]interfaces.IBlock),
+		chunkProvider: providers.NewAnvilChunkProvider(path),
 	}
 
 	if len(generator) == 0 {
-		dimension.generator = generation.GetGeneratorByName(level.server.GetConfiguration().DefaultGenerator)
+		dimension.chunkProvider.SetGenerator(generation.GetGeneratorByName(level.server.GetConfiguration().DefaultGenerator))
 	} else {
-		dimension.generator = generation.GetGeneratorByName(generator)
+		dimension.chunkProvider.SetGenerator(generation.GetGeneratorByName(generator))
 	}
 
 	return dimension
@@ -70,69 +71,52 @@ func (dimension *Dimension) GetLevel() interfaces.ILevel {
 }
 
 /**
+ * Closes the dimension and saves it.
+ */
+func (dimension *Dimension) Close() {
+	dimension.chunkProvider.Close(false)
+}
+
+/**
  * Returns if chunk is loaded
  */
 func (dimension *Dimension) IsChunkLoaded(x, z int32) bool {
-	dimension.mux.Lock()
-	var _, ok = dimension.chunks[GetChunkIndex(x, z)]
-	dimension.mux.Unlock()
-	return ok
+	return dimension.chunkProvider.IsChunkLoaded(x, z)
 }
 
 /**
  * Sets this chunk unloaded
  */
-func (dimension *Dimension) SetChunkUnloaded(x, z int32) {
-	if !dimension.IsChunkLoaded(x, z) {
-		dimension.mux.Lock()
-		delete(dimension.chunks, GetChunkIndex(x, z))
-		dimension.mux.Unlock()
-	}
+func (dimension *Dimension) UnloadChunk(x, z int32) {
+	dimension.chunkProvider.UnloadChunk(x, z)
 }
 
 /**
  * Sets a new chunk in the dimension at the x/z coordinates.
  */
 func (dimension *Dimension) SetChunk(x, z int32, chunk interfaces.IChunk) {
-	dimension.mux.Lock()
-	dimension.chunks[GetChunkIndex(x, z)] = chunk
-	dimension.mux.Unlock()
+	dimension.chunkProvider.SetChunk(x, z, chunk)
 }
 
 /**
  * Gets the chunk in the dimension at the x/z coordinates.
  */
-func (dimension *Dimension) GetChunk(x, z int32) interfaces.IChunk {
-	dimension.mux.Lock()
-	if v, ok := dimension.chunks[GetChunkIndex(x, z)]; ok {
-		dimension.mux.Unlock()
-		return v
-	}
-	var chunk = dimension.generator.GetNewChunk(chunks.NewChunk(x, z))
-	dimension.chunks[GetChunkIndex(x, z)] = chunk
-	dimension.mux.Unlock()
-	return chunk
-}
-
-/**
- * Returns if the dimension is generated or not.
- */
-func (dimension *Dimension) IsGenerated() bool {
-	return dimension.isGenerated
+func (dimension *Dimension) GetChunk(x, z int32) (interfaces.IChunk, bool) {
+	return dimension.chunkProvider.GetChunk(x, z)
 }
 
 /**
  * Sets the generator of this dimension.
  */
 func (dimension *Dimension) SetGenerator(generator interfaces.IGenerator) {
-	dimension.generator = generator
+	dimension.chunkProvider.SetGenerator(generator)
 }
 
 /**
  * Returns the generator of this level.
  */
 func (dimension *Dimension) GetGenerator() interfaces.IGenerator {
-	return dimension.generator
+	return dimension.chunkProvider.GetGenerator()
 }
 
 /**
@@ -153,12 +137,20 @@ func (dimension *Dimension) RequestChunks(player interfaces.IPlayer, distance in
 					continue
 				}
 
-				chunk := dimension.GetChunk(x, z)
-				chunk.AddViewer(player)
-				player.SendChunk(chunk, index)
+				chunk, ok := dimension.GetChunk(x, z)
+				f := func(c interfaces.IChunk) {
+					c.AddViewer(player)
+					player.SendChunk(c, index)
 
-				for _, entity := range chunk.GetEntities() {
-					entity.SpawnTo(player)
+					for _, entity := range c.GetEntities() {
+						entity.SpawnTo(player)
+					}
+				}
+
+				if !ok {
+					dimension.chunkProvider.LoadChunk(x, z, f)
+				} else {
+					f(chunk)
 				}
 			}
 		}
