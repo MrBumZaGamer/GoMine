@@ -30,7 +30,7 @@ type Dimension struct {
  */
 func NewDimension(name string, dimensionId int, level *Level, generator string) *Dimension {
 	var path = level.GetServer().GetServerPath() + "worlds/" + level.GetName() + "/" + name + "/region/"
-	os.MkdirAll(path, os.ModeDir)
+	os.MkdirAll(path, 0777)
 
 	var dimension = &Dimension{
 		name:  name,

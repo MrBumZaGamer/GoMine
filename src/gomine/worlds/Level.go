@@ -19,7 +19,7 @@ type Level struct {
  */
 func NewLevel(levelName string, server interfaces.IServer) *Level {
 	var level = &Level{server: server, name: levelName, dimensions: make(map[string]interfaces.IDimension), gameRules: make(map[string]interfaces.IGameRule)}
-	os.MkdirAll(server.GetServerPath() + "worlds/" + levelName, os.ModeDir)
+	os.MkdirAll(server.GetServerPath() + "worlds/" + levelName, 0777)
 
 	var defaultDimension = NewDimension("Overworld", OverworldId, level, "")
 	level.SetDefaultDimension(defaultDimension)
