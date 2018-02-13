@@ -138,6 +138,7 @@ func (entity *Entity) SetPosition(v *vectors.TripleVector) {
 	var newChunkZ = int32(math2.Floor(float64(v.Z))) >> 4
 
 	var oldChunk = entity.GetChunk()
+
 	var newChunk, ok = entity.GetDimension().GetChunk(newChunkX, newChunkZ)
 	if !ok {
 		return
@@ -148,7 +149,9 @@ func (entity *Entity) SetPosition(v *vectors.TripleVector) {
 	if oldChunk != newChunk {
 		newChunk.AddEntity(entity)
 		entity.SpawnToAll()
-		oldChunk.RemoveEntity(entity)
+		if oldChunk != nil {
+			oldChunk.RemoveEntity(entity)
+		}
 	}
 }
 
@@ -158,6 +161,10 @@ func (entity *Entity) SetPosition(v *vectors.TripleVector) {
 func (entity *Entity) GetChunk() interfaces.IChunk {
 	var x = int32(math2.Floor(float64(entity.Position.X))) >> 4
 	var z = int32(math2.Floor(float64(entity.Position.Z))) >> 4
+
+	if !entity.GetDimension().IsChunkLoaded(x, z) {
+		return nil
+	}
 	var chunk, _ = entity.GetDimension().GetChunk(x, z)
 	return chunk
 }
@@ -341,7 +348,7 @@ func (entity *Entity) DespawnFromAll() {
 /**
  * Spawns this entity to all players.
  */
-func (entity *Entity) SpawnToAll()  {
+func (entity *Entity) SpawnToAll() {
 	for _, p := range entity.GetChunk().GetViewers() {
 		if p.GetRuntimeId() != entity.GetRuntimeId() {
 			if _, ok := entity.SpawnedTo[p.GetRuntimeId()]; !ok {

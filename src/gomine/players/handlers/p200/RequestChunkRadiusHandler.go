@@ -7,6 +7,7 @@ import (
 	"gomine/net/packets/p200"
 	"gomine/net/packets/data"
 	"gomine/players/handlers"
+	"math"
 )
 
 type RequestChunkRadiusHandler struct {
@@ -51,8 +52,14 @@ func (handler RequestChunkRadiusHandler) Handle(packet interfaces.IPacket, playe
 				}
 			}
 
-			player.SpawnToAll()
-			player.SpawnPlayerToAll()
+			var x = int32(math.Floor(float64(player.GetPosition().X))) >> 4
+			var z = int32(math.Floor(float64(player.GetPosition().Z))) >> 4
+			if !player.GetDimension().IsChunkLoaded(x, z) {
+				player.GetDimension().LoadChunk(x, z, func(chunk interfaces.IChunk) {
+					player.SpawnToAll()
+					player.SpawnPlayerToAll()
+				})
+			}
 
 			player.UpdateAttributes()
 			player.SendSetEntityData(player, player.GetEntityData())

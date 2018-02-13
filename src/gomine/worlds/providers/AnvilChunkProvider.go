@@ -36,21 +36,7 @@ func (provider *AnvilChunkProvider) Process() {
 
 		var regionX, regionZ = request.x >> 5, request.z >> 5
 		if provider.IsRegionLoaded(regionX, regionZ) {
-
-			var region, _ = provider.GetRegion(regionX, regionZ)
-			var compression, data = region.GetChunkData(request.x, request.z)
-			if len(data) < 1 {
-				provider.GenerateChunk(request.x, request.z)
-				provider.completeRequest(request)
-				return
-			}
-
-			var reader = GoNBT.NewNBTReader(data, false, GoNBT.BigEndian)
-			var c = reader.ReadIntoCompound(int(compression))
-
-			provider.SetChunk(request.x, request.z, chunks.GetAnvilChunkFromNBT(c))
-			provider.completeRequest(request)
-
+			provider.load(request, regionX, regionZ)
 		} else {
 			var path = provider.path + "r." + strconv.Itoa(int(regionX)) + "." + strconv.Itoa(int(regionZ)) + ".mca"
 			var _, err = os.Stat(path)
@@ -58,8 +44,26 @@ func (provider *AnvilChunkProvider) Process() {
 				os.Create(path)
 			}
 			provider.OpenRegion(regionX, regionZ, path)
+			provider.load(request, regionX, regionZ)
 		}
 	}
+}
+
+func (provider *AnvilChunkProvider) load(request ChunkRequest, regionX, regionZ int32) {
+	var region, _ = provider.GetRegion(regionX, regionZ)
+	if !region.HasChunkGenerated(request.x, request.z) {
+		provider.GenerateChunk(request.x, request.z)
+		provider.completeRequest(request)
+		return
+	}
+
+	var compression, data = region.GetChunkData(request.x, request.z)
+
+	var reader = GoNBT.NewNBTReader(data, false, GoNBT.BigEndian)
+	var c = reader.ReadIntoCompound(int(compression))
+
+	provider.SetChunk(request.x, request.z, chunks.GetAnvilChunkFromNBT(c))
+	provider.completeRequest(request)
 }
 
 /**
@@ -94,12 +98,14 @@ func (provider *AnvilChunkProvider) Close(async bool) {
 		go func() {
 			provider.regions.Range(func(index, region interface{}) bool {
 				region.(*goanvil.Region).Close(true)
+				provider.regions.Delete(index)
 				return true
 			})
 		}()
 	} else {
 		provider.regions.Range(func(index, region interface{}) bool {
 			region.(*goanvil.Region).Close(true)
+			provider.regions.Delete(index)
 			return true
 		})
 	}

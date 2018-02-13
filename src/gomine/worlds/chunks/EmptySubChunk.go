@@ -68,5 +68,5 @@ func (subChunk *EmptySubChunk) GetHighestBlock(x, z int) int {
 }
 
 func (subChunk *EmptySubChunk) ToBinary() []byte {
-	return []byte{}
+	return make([]byte, 4096 + 2048 + 1)
 }

@@ -94,10 +94,24 @@ func (manager *LevelManager) Tick() {
 	}
 }
 
+/**
+ * Closes all dimensions in the level manager.
+ */
 func (manager *LevelManager) Close() {
 	for _, level := range manager.levels {
 		for _, dimension := range level.GetDimensions() {
-			dimension.Close()
+			dimension.Close(false)
+		}
+	}
+}
+
+/**
+ * Saves all dimensions in the level manager.
+ */
+func (manager *LevelManager) Save() {
+	for _, level := range manager.levels {
+		for _, dimension := range level.GetDimensions() {
+			dimension.Save()
 		}
 	}
 }

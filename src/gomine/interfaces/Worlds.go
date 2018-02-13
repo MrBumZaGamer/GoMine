@@ -121,9 +121,11 @@ type IDimension interface {
 	RequestChunks(IPlayer, int32)
 	SetGenerator(IGenerator)
 	GetGenerator() IGenerator
-	Close()
+	Close(bool)
+	Save()
 	IsChunkLoaded(int32, int32) bool
 	UnloadChunk(int32, int32)
+	LoadChunk(x, z int32, function func(IChunk))
 }
 
 type IChunkProvider interface {

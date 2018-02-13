@@ -147,8 +147,13 @@ func (server *Server) Shutdown() {
 	server.GetLogger().Notice("Server stopped.")
 }
 
-func (server *Server) AutoSave() {
-
+/**
+ * Saves all data of the server.
+ */
+func (server *Server) Save() {
+	go func() {
+		server.levelManager.Save()
+	}()
 }
 
 /**

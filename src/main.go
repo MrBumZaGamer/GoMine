@@ -100,4 +100,5 @@ func setUpDirectories(path string) {
 	os.Mkdir(path + "extensions/plugins", os.ModeDir)
 	os.Mkdir(path + "extensions/behavior_packs", os.ModeDir)
 	os.Mkdir(path + "extensions/resource_packs", os.ModeDir)
+	os.Mkdir(path + "worlds", os.ModeDir)
 }

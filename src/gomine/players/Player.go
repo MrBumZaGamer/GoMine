@@ -317,11 +317,17 @@ func (player *Player) SetGeometryData(data string) {
 /**
  * Sends a chunk to the player.
  */
-func (player *Player) SendChunk(chunk interfaces.IChunk, index int)  {
-	player.SendFullChunkData(chunk)
+func (player *Player) SendChunk(chunk interfaces.IChunk, index int) {
+	if player.HasChunkInUse(index) {
+		return
+	}
 	player.mux.Lock()
 	player.usedChunks[index] = chunk
 	player.mux.Unlock()
+
+	println(chunk.GetX(), chunk.GetZ())
+
+	player.SendFullChunkData(chunk)
 }
 
 /**

@@ -32,7 +32,7 @@ func (provider *ChunkProvider) LoadChunk(x, z int32, function func(interfaces.IC
 
 /**
  * Checks if a chunk with the given chunk X and Z is loaded.
- */
+*/
 func (provider *ChunkProvider) IsChunkLoaded(x, z int32) bool {
 	var _, ok = provider.chunks.Load(provider.GetChunkIndex(x, z))
 	return ok

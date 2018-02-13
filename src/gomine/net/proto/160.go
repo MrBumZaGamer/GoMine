@@ -45,9 +45,9 @@ func (protocol *Protocol160) GetStartGame(player interfaces.IPlayer) interfaces.
 	pk.EntityRuntimeId = player.GetRuntimeId()
 	pk.EntityUniqueId = player.GetUniqueId()
 	pk.PlayerGameMode = 1
-	pk.PlayerPosition = *vectors.NewTripleVector(20, 20, 20)
+	pk.PlayerPosition = *vectors.NewTripleVector(0, 100, 0)
 	pk.LevelGameMode = 1
-	pk.LevelSpawnPosition = *vectors.NewTripleVector(20, 20, 20)
+	pk.LevelSpawnPosition = *vectors.NewTripleVector(0, 100, 0)
 	pk.CommandsEnabled = true
 
 	var gameRules = player.GetServer().GetLevelManager().GetDefaultLevel().GetGameRules()
